@@ -5,6 +5,7 @@ import (
 
 	"service-golang/configs"
 	"service-golang/pkg/logger"
+	"service-golang/pkg/server/gin"
 
 	"go.uber.org/zap"
 )
@@ -36,6 +37,16 @@ func main() {
 		zap.String("app_env", configEnv.GetString("APP_ENV")),
 		zap.String("app_version", configEnv.GetString("APP_VERSION")),
 	)
+
+	// Step 3 - Init Gin Server
+	server := gin.NewGinServer(configEnv, log.Logger)
+	server.SetupMiddlewares()
+	server.SetupRoutes()
+
+	// Step 4 - Start server ✅ FIXED: Tambahkan ini!
+	if err := server.Start(); err != nil {
+		log.Fatal("Failed to start server", zap.Error(err))
+	}
 
 	log.Info("Application started successfully")
 }

@@ -5,6 +5,7 @@ import (
 
 	"service-golang/configs"
 	"service-golang/pkg/logger"
+	"service-golang/pkg/server/chi"
 
 	"go.uber.org/zap"
 )
@@ -23,10 +24,10 @@ func main() {
 
 	defer log.Sync()
 
-	log.Info("Starting application...")
+	log.Info("Starting Chi application...")
 
 	// Step 2 - Load env configuration
-	configEnv, err := configs.NewViper(".env", "env", ".", "../../")
+	configEnv, err := configs.NewViper(".env", "env", ".", "../../../")
 	if err != nil {
 		log.Fatal("Failed to load configuration", zap.Error(err))
 	}
@@ -36,6 +37,16 @@ func main() {
 		zap.String("app_env", configEnv.GetString("APP_ENV")),
 		zap.String("app_version", configEnv.GetString("APP_VERSION")),
 	)
+
+	// Step 3 - Init Chi Server
+	server := chi.NewChiServer(configEnv, log.Logger)
+	server.SetupMiddlewares()
+	server.SetupRoutes()
+
+	// Step 4 - Start server
+	if err := server.Start(); err != nil {
+		log.Fatal("Failed to start server", zap.Error(err))
+	}
 
 	log.Info("Application started successfully")
 }
