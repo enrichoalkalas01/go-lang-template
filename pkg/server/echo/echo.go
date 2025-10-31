@@ -151,28 +151,36 @@ func (s *EchoServer) Start() error {
 	// Echo native log
 	s.echo.Logger.Infof("⇨ http server started on %s", address)
 
-	// Manage server lifecycle
+	// ✅ ADD: Manage server lifecycle
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	// Start server in goroutine
+	// ✅ ADD: Start server in goroutine
 	go func() {
 		if err := s.echo.Start(address); err != nil && err != http.ErrServerClosed {
-			s.log.Error("Failed to start Echo server", zap.Error(err))
+			s.log.Error("Echo server startup error", zap.Error(err))
 			s.echo.Logger.Fatalf("Server startup error: %v", err)
 		}
 	}()
 
-	// Zap log success
 	s.log.Info("Echo server started successfully",
 		zap.String("address", address),
 		zap.String("url", fmt.Sprintf("http://%s:%s", host, port)),
 	)
 
-	// Wait for shutdown signal
+	// ✅ ADD: Wait for shutdown signal
 	<-ctx.Done()
 
-	return s.Shutdown(context.Background())
+	// ✅ ADD: Graceful shutdown with configurable timeout
+	shutdownTimeout := s.config.GetDuration("TIMEOUT_GRACEFUL_SHUTDOWN")
+	if shutdownTimeout == 0 {
+		shutdownTimeout = 10 // default 10 seconds
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout*time.Second)
+	defer cancel()
+
+	return s.Shutdown(shutdownCtx)
 }
 
 func (s *EchoServer) Shutdown(ctx context.Context) error {

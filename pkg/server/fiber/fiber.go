@@ -135,28 +135,36 @@ func (s *FiberServer) Start() error {
 	// Fiber native log
 	log.Printf("⚡ Fiber server starting on http://%s", address)
 
-	// Manage server lifecycle
+	// ✅ ADD: Manage server lifecycle
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	// Start server in goroutine
+	// ✅ ADD: Start server in goroutine
 	go func() {
 		if err := s.fiber.Listen(address); err != nil {
-			s.log.Error("Failed to start Fiber server", zap.Error(err))
+			s.log.Error("Fiber server startup error", zap.Error(err))
 			log.Fatalf("Server startup error: %v", err)
 		}
 	}()
 
-	// Zap log success
 	s.log.Info("Fiber server started successfully",
 		zap.String("address", address),
 		zap.String("url", fmt.Sprintf("http://%s:%s", host, port)),
 	)
 
-	// Wait for shutdown signal
+	// ✅ ADD: Wait for shutdown signal
 	<-ctx.Done()
 
-	return s.Shutdown(context.Background())
+	// ✅ ADD: Graceful shutdown with configurable timeout
+	shutdownTimeout := s.config.GetDuration("TIMEOUT_GRACEFUL_SHUTDOWN")
+	if shutdownTimeout == 0 {
+		shutdownTimeout = 10 // default 10 seconds
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout*time.Second)
+	defer cancel()
+
+	return s.Shutdown(shutdownCtx)
 }
 
 func (s *FiberServer) Shutdown(ctx context.Context) error {

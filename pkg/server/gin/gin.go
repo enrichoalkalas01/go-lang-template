@@ -161,28 +161,36 @@ func (s *GinServer) Start() error {
 		Handler: s.gin,
 	}
 
-	// Manage server lifecycle
+	// ✅ ADD: Manage server lifecycle
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	// Start server in goroutine
+	// ✅ ADD: Start server in goroutine
 	go func() {
 		if err := s.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			s.log.Error("Failed to start Gin server", zap.Error(err))
+			s.log.Error("Gin server startup error", zap.Error(err))
 			log.Fatalf("Server startup error: %v", err)
 		}
 	}()
 
-	// Zap log success
 	s.log.Info("Gin server started successfully",
 		zap.String("address", address),
 		zap.String("url", fmt.Sprintf("http://%s:%s", host, port)),
 	)
 
-	// Wait for shutdown signal
+	// ✅ ADD: Wait for shutdown signal
 	<-ctx.Done()
 
-	return s.Shutdown(context.Background())
+	// ✅ ADD: Graceful shutdown with configurable timeout
+	shutdownTimeout := s.config.GetDuration("TIMEOUT_GRACEFUL_SHUTDOWN")
+	if shutdownTimeout == 0 {
+		shutdownTimeout = 10 // default 10 seconds
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout*time.Second)
+	defer cancel()
+
+	return s.Shutdown(shutdownCtx)
 }
 
 func (s *GinServer) Shutdown(ctx context.Context) error {
