@@ -8,6 +8,8 @@ import (
 	"os/signal"
 	"time"
 
+	mdw "service-golang/pkg/middleware"
+
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/spf13/viper"
@@ -48,18 +50,39 @@ func NewEchoServer(cfg *viper.Viper, log *zap.Logger) *EchoServer {
 }
 
 func (s *EchoServer) SetupMiddlewares() {
-	// Recovery middleware
-	s.echo.Use(middleware.Recover())
+	// 1. Recovery - MUST BE FIRST
+	recoveryMiddleware := mdw.NewRecoveryMiddleware(s.log)
+	s.echo.Use(recoveryMiddleware.Handle())
+	// s.echo.Use(middleware.Recover()) // middleware from echo
 
-	// CORS middleware
-	s.echo.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{"*"},
-		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch},
-		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
-	}))
+	// 2. Logger
+	loggerMw := mdw.NewLoggerMiddleware(s.log)
+	s.echo.Use(loggerMw.Handle())
 
-	// Request ID middleware
-	s.echo.Use(middleware.RequestID())
+	// 3. CORS
+	corsMw := mdw.NewCORSMiddleware([]string{"*"})
+	s.echo.Use(corsMw.Handle())
+
+	// s.echo.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+	// 	AllowOrigins: []string{"*"},
+	// 	AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch},
+	// 	AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
+	// }))
+
+	// 4. Request ID
+	requestIDMw := mdw.NewRequestIDMiddleware()
+	s.echo.Use(requestIDMw.Handle())
+	// s.echo.Use(middleware.RequestID()) // middleware from echo
+
+	// 5. Rate Limit (if enabled)
+	if s.config.GetBool("RATE_LIMIT_ENABLED") {
+		rateLimitMw := mdw.NewRateLimitMiddleware(
+			s.log,
+			s.config.GetInt("RATE_LIMIT_REQUESTS"),
+		)
+		rateLimitMw.CleanupOldLimiters() // Start cleanup goroutine
+		s.echo.Use(rateLimitMw.Handle())
+	}
 
 	// Custom logger middleware (Zap)
 	s.echo.Use(s.loggerMiddleware())
