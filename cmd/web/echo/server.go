@@ -1,13 +1,16 @@
 package main
 
 import (
+	"net/http"
 	"os"
+	"time"
 
 	"service-golang/configs"
 	"service-golang/pkg/logger"
 
 	"service-golang/pkg/server/echo"
 
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
 
@@ -49,7 +52,7 @@ func main() {
 	echoApp := server.GetEcho()
 	router := NewRouter(echoApp, configEnv, log.Logger)
 	router.SetupCleanEchoRoutes()
-	
+
 	// Start server
 	// Start server
 	if err := server.Start(); err != nil {
@@ -61,18 +64,30 @@ func main() {
 
 // Simple local router implementation used instead of the missing external package.
 type Router struct {
-	app    interface{}
-	cfg    interface{}
-	logger interface{}
+	app    *echo.EchoServer
+	env    *viper.Viper
+	logger *zap.Logger
 }
 
-func NewRouter(app interface{}, cfg interface{}, logger interface{}) *Router {
-	return &Router{app: app, cfg: cfg, logger: logger}
+func NewRouter(app *echo.EchoServer, env *viper.Viper, logger *zap.Logger) *Router {
+	return &Router{app: app, env: env, logger: logger}
 }
 
 func (r *Router) SetupCleanEchoRoutes() {
+	// v1 := r.app.GetEcho().Group("/v1")
+
+	r.app.GetEcho().GET("/", r.rootHandler)
 	// Placeholder: register Echo routes here using r.app (echo instance), r.cfg and r.logger.
 	// This is a no-op implementation to satisfy the build when the external package is not present.
+}
+
+func (r *Router) rootHandler(c echo.EchoServer) error {
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"status":  "success",
+		"message": "Server is running...",
+		"version": r.config.GetString("APP_VERSION"),
+		"time":    time.Now().Format(time.RFC3339),
+	})
 }
 
 func getEnv(key, defaultValue string) string {

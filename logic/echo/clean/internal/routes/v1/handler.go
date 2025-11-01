@@ -10,7 +10,7 @@ import (
 // setupBaseRoutes sets up base routes (root, health, 404)
 func (r *Router) setupBaseRoutes() {
 	r.app.GET("/", r.rootHandler)
-	r.app.GET("/health", r.healthHandler)
+	r.app.GET("/health-test", r.healthHandler)
 
 	// 404 handler
 	r.app.RouteNotFound("/*", r.notFoundHandler)
