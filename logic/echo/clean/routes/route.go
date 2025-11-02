@@ -2,7 +2,7 @@ package routes
 
 import (
 	"net/http"
-	v1 "service-golang/logic/echo/clean/internal/routes/v1"
+	v1 "service-golang/logic/echo/clean/routes/v1"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -35,7 +35,7 @@ func NewRouter(
 
 func (r *Router) SetupCleanEchoRoutes() {
 	r.app.GET("/", r.rootHandler)
-	// r.v1Router.Setup()
+	r.v1Router.Setup()
 }
 
 func (r *Router) rootHandler(c echo.Context) error {
